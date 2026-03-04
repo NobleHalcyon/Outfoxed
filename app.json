@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Outfoxed",
+    "slug": "outfoxed",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "platforms": [
+      "android"
+    ],
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#fff6e5"
+    },
+    "android": {
+      "package": "com.noblehalcyon.outfoxed",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#fff6e5"
+      },
+      "predictiveBackGestureEnabled": false
+    }
+  }
+}
