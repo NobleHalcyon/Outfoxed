@@ -21,6 +21,11 @@
         "backgroundColor": "#fff6e5"
       },
       "predictiveBackGestureEnabled": false
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2ffd00a5-d155-4d81-8a8a-dc51fcef8bd2"
+      }
     }
   }
 }

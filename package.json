@@ -4,7 +4,7 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
+    "android": "expo run:android",
     "android:dev": "expo start --android",
     "android:run": "expo run:android",
     "android:apk": "eas build -p android --profile preview",
@@ -15,6 +15,7 @@
     "@react-native-community/slider": "5.1.0",
     "@react-navigation/native": "^7.1.21",
     "@react-navigation/native-stack": "^7.3.30",
+    "buffer": "^6.0.3",
     "expo": "~55.0.4",
     "expo-av": "~16.0.5",
     "expo-modules-core": "^55.0.13",
