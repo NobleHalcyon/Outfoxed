@@ -1,18 +1,12 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useState } from "react";
-import {
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { RootStackParamList } from "../app/navigation";
+import { SafeAreaView, ScrollView, StyleSheet, Switch, TextInput, View } from "react-native";
 import { useAppContext } from "../app/AppContext";
+import { RootStackParamList } from "../app/navigation";
+import AppText from "../components/AppText";
+import IconButton from "../components/IconButton";
 import { DifficultyLevel } from "../game/types";
+import { BACKGROUND_PRESETS, resolveBackgroundColor } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
@@ -33,35 +27,38 @@ function StepperRow({
 }): React.JSX.Element {
   return (
     <View style={styles.stepperRow}>
-      <Text style={styles.rowLabel}>{label}</Text>
+      <AppText weight="medium" style={styles.rowLabel}>
+        {label}
+      </AppText>
       <View style={styles.stepperControls}>
-        <Pressable style={styles.stepperButton} onPress={onDecrease}>
-          <Text style={styles.stepperText}>-</Text>
-        </Pressable>
-        <Text style={styles.stepperValue}>{valueLabel}</Text>
-        <Pressable style={styles.stepperButton} onPress={onIncrease}>
-          <Text style={styles.stepperText}>+</Text>
-        </Pressable>
+        <IconButton icon="dash" label="Less" onPress={onDecrease} style={styles.stepperButton} haptic="light" />
+        <AppText weight="semibold" style={styles.stepperValue}>
+          {valueLabel}
+        </AppText>
+        <IconButton icon="plus-circle" label="More" onPress={onIncrease} style={styles.stepperButton} haptic="light" />
       </View>
     </View>
   );
 }
 
-export default function SettingsScreen({}: Props): React.JSX.Element {
+export default function SettingsScreen({ navigation }: Props): React.JSX.Element {
   const { activeProfile, updateActiveSettings } = useAppContext();
   const [wordDraft, setWordDraft] = useState("");
 
   if (!activeProfile) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: "#EEF1F4" }]}>
         <View style={styles.centered}>
-          <Text style={styles.placeholder}>No active kid profile.</Text>
+          <AppText weight="semibold" style={styles.placeholder}>
+            No active kid profile.
+          </AppText>
         </View>
       </SafeAreaView>
     );
   }
 
   const settings = activeProfile.settings;
+  const backgroundColor = resolveBackgroundColor(settings.backgroundThemeId);
 
   const setStartingDifficulty = (level: DifficultyLevel): void => {
     updateActiveSettings({ startingDifficultyLevel: level });
@@ -81,21 +78,47 @@ export default function SettingsScreen({}: Props): React.JSX.Element {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Settings · {activeProfile.name}</Text>
+        <View style={styles.topRow}>
+          <IconButton icon="home" label="Home" onPress={() => navigation.replace("Home")} />
+          <AppText weight="bold" style={styles.title}>
+            Settings
+          </AppText>
+        </View>
+
+        <AppText weight="semibold" style={styles.kidLabel}>
+          Kid: {activeProfile.name}
+        </AppText>
 
         <View style={styles.card}>
           <View style={styles.switchRow}>
-            <Text style={styles.rowLabel}>Sound</Text>
+            <AppText weight="medium" style={styles.rowLabel}>
+              Sound effects
+            </AppText>
             <Switch value={settings.soundEnabled} onValueChange={(soundEnabled) => updateActiveSettings({ soundEnabled })} />
           </View>
           <View style={styles.switchRow}>
-            <Text style={styles.rowLabel}>Show HUD (score + streak)</Text>
+            <AppText weight="medium" style={styles.rowLabel}>
+              Music
+            </AppText>
+            <IconButton
+              icon={settings.musicMuted ? "mute" : "unmute"}
+              label={settings.musicMuted ? "Muted" : "On"}
+              onPress={() => updateActiveSettings({ musicMuted: !settings.musicMuted })}
+              haptic="light"
+            />
+          </View>
+          <View style={styles.switchRow}>
+            <AppText weight="medium" style={styles.rowLabel}>
+              Show HUD (score + streak)
+            </AppText>
             <Switch value={settings.showHud} onValueChange={(showHud) => updateActiveSettings({ showHud })} />
           </View>
           <View style={styles.switchRow}>
-            <Text style={styles.rowLabel}>Show timer</Text>
+            <AppText weight="medium" style={styles.rowLabel}>
+              Show timer
+            </AppText>
             <Switch value={settings.showTimer} onValueChange={(showTimer) => updateActiveSettings({ showTimer })} />
           </View>
           <StepperRow
@@ -104,11 +127,16 @@ export default function SettingsScreen({}: Props): React.JSX.Element {
             onDecrease={() => updateActiveSettings({ timeoutMs: clamp(settings.timeoutMs - 1000, 5000, 30000) })}
             onIncrease={() => updateActiveSettings({ timeoutMs: clamp(settings.timeoutMs + 1000, 5000, 30000) })}
           />
+          <AppText weight="regular" style={styles.helperText}>
+            Low difficulty always disables timer and memory delay.
+          </AppText>
         </View>
 
         <View style={styles.card}>
           <View style={styles.switchRow}>
-            <Text style={styles.rowLabel}>Memory Mode</Text>
+            <AppText weight="medium" style={styles.rowLabel}>
+              Memory mode
+            </AppText>
             <Switch value={settings.memoryMode} onValueChange={(memoryMode) => updateActiveSettings({ memoryMode })} />
           </View>
           <StepperRow
@@ -133,39 +161,71 @@ export default function SettingsScreen({}: Props): React.JSX.Element {
 
         <View style={styles.card}>
           <View style={styles.switchRow}>
-            <Text style={styles.rowLabel}>Adaptive practice</Text>
+            <AppText weight="medium" style={styles.rowLabel}>
+              Adaptive practice
+            </AppText>
             <Switch
               value={settings.adaptivePracticeEnabled}
               onValueChange={(adaptivePracticeEnabled) => updateActiveSettings({ adaptivePracticeEnabled })}
             />
           </View>
-          <Text style={styles.rowLabel}>Starting progression difficulty</Text>
+          <AppText weight="semibold" style={styles.rowLabel}>
+            Starting progression difficulty
+          </AppText>
           <View style={styles.difficultyRow}>
             {[0, 1, 2].map((value) => {
               const labels = ["Low", "Moderate", "High"] as const;
               const selected = settings.startingDifficultyLevel === value;
               return (
-                <Pressable
+                <IconButton
                   key={value}
-                  style={[styles.difficultyChip, selected && styles.difficultyChipSelected]}
+                  icon="trophy"
+                  label={labels[value]}
                   onPress={() => setStartingDifficulty(value as DifficultyLevel)}
-                >
-                  <Text style={[styles.difficultyText, selected && styles.difficultyTextSelected]}>{labels[value]}</Text>
-                </Pressable>
+                  style={[styles.difficultyChip, selected && styles.difficultyChipSelected]}
+                  textColor={selected ? "#FFFFFF" : "#1E3553"}
+                  iconColor={selected ? "#FFFFFF" : "#1E3553"}
+                  haptic="light"
+                />
               );
             })}
           </View>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.rowLabel}>Simple Words</Text>
+          <AppText weight="semibold" style={styles.rowLabel}>
+            Background Theme
+          </AppText>
+          <View style={styles.themeWrap}>
+            {BACKGROUND_PRESETS.map((preset) => {
+              const selected = settings.backgroundThemeId === preset.id;
+              return (
+                <IconButton
+                  key={preset.id}
+                  icon="paintbrush"
+                  label={preset.label}
+                  onPress={() => updateActiveSettings({ backgroundThemeId: preset.id })}
+                  style={[styles.themeButton, selected && styles.themeButtonSelected, { backgroundColor: preset.backgroundColor }]}
+                  iconColor="#1A4D9C"
+                  textColor="#1A4D9C"
+                  haptic="light"
+                />
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <AppText weight="semibold" style={styles.rowLabel}>
+            Simple Words
+          </AppText>
           <View style={styles.wordWrap}>
             {settings.wordList.map((word) => (
               <View key={word} style={styles.wordChip}>
-                <Text style={styles.wordChipText}>{word}</Text>
-                <Pressable onPress={() => removeWord(word)}>
-                  <Text style={styles.removeWord}>x</Text>
-                </Pressable>
+                <AppText weight="medium" style={styles.wordChipText}>
+                  {word}
+                </AppText>
+                <IconButton icon="trash" label="Remove" onPress={() => removeWord(word)} style={styles.removeWordButton} haptic="light" />
               </View>
             ))}
           </View>
@@ -178,9 +238,25 @@ export default function SettingsScreen({}: Props): React.JSX.Element {
               style={styles.wordInput}
               maxLength={12}
             />
-            <Pressable style={styles.addWordButton} onPress={addWord}>
-              <Text style={styles.addWordText}>Add</Text>
-            </Pressable>
+            <IconButton icon="plus-circle" label="Add Word" onPress={addWord} haptic="light" />
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <AppText weight="semibold" style={styles.rowLabel}>
+            Parent Controls
+          </AppText>
+          <View style={styles.parentRow}>
+            <IconButton icon="lock" label="Android App Pinning" style={styles.parentIcon} playPop={false} />
+            <AppText weight="regular" style={styles.parentText}>
+              Open Recent Apps, tap the Outfoxed app icon, then choose Pin. Unpin with Back + Overview.
+            </AppText>
+          </View>
+          <View style={styles.parentRow}>
+            <IconButton icon="lock" label="iOS Guided Access" style={styles.parentIcon} playPop={false} />
+            <AppText weight="regular" style={styles.parentText}>
+              Enable Guided Access in Accessibility, open Outfoxed, triple-click the side button, then tap Start.
+            </AppText>
           </View>
         </View>
       </ScrollView>
@@ -191,11 +267,25 @@ export default function SettingsScreen({}: Props): React.JSX.Element {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#F4F8FC",
   },
   content: {
     padding: 14,
     paddingBottom: 30,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 32,
+    color: "#1A3450",
+  },
+  kidLabel: {
+    fontSize: 18,
+    color: "#1A3450",
+    marginBottom: 10,
   },
   centered: {
     flex: 1,
@@ -204,13 +294,7 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     color: "#39506A",
-    fontWeight: "700",
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: "#1A3450",
-    marginBottom: 10,
+    fontSize: 16,
   },
   card: {
     backgroundColor: "#FFFFFF",
@@ -228,90 +312,81 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     color: "#21405F",
-    fontWeight: "700",
-    fontSize: 15,
-    marginBottom: 6,
+    fontSize: 17,
+  },
+  helperText: {
+    color: "#4A607A",
+    fontSize: 14,
   },
   stepperRow: {
     marginTop: 3,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   stepperControls: {
     flexDirection: "row",
     alignItems: "center",
   },
   stepperButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    backgroundColor: "#E3ECF6",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepperText: {
-    color: "#21405F",
-    fontWeight: "900",
-    fontSize: 20,
+    borderRadius: 12,
+    minWidth: 86,
   },
   stepperValue: {
-    minWidth: 90,
+    minWidth: 100,
     textAlign: "center",
     color: "#21405F",
-    fontWeight: "800",
+    fontSize: 16,
   },
   difficultyRow: {
     flexDirection: "row",
-    marginTop: 4,
+    marginTop: 6,
+    gap: 8,
   },
   difficultyChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "#E8F0FA",
-    borderWidth: 1,
-    borderColor: "#B4C9E0",
-    marginRight: 8,
   },
   difficultyChipSelected: {
     backgroundColor: "#1A4D9C",
     borderColor: "#1A4D9C",
   },
-  difficultyText: {
-    color: "#1E3553",
-    fontWeight: "700",
+  themeWrap: {
+    gap: 8,
   },
-  difficultyTextSelected: {
-    color: "#FFFFFF",
+  themeButton: {
+    borderRadius: 14,
+  },
+  themeButtonSelected: {
+    borderColor: "#1A4D9C",
+    borderWidth: 2,
   },
   wordWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    gap: 8,
     marginBottom: 10,
   },
   wordChip: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     borderRadius: 999,
     backgroundColor: "#F1F7FF",
     borderWidth: 1,
     borderColor: "#C3D5E8",
     paddingHorizontal: 10,
     paddingVertical: 6,
-    marginRight: 6,
-    marginBottom: 6,
   },
   wordChipText: {
     color: "#21405F",
-    marginRight: 8,
-    fontWeight: "700",
+    fontSize: 15,
   },
-  removeWord: {
-    color: "#B83838",
-    fontWeight: "900",
+  removeWordButton: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderColor: "#D5E2F1",
   },
   wordInputRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
   },
   wordInput: {
     flex: 1,
@@ -320,16 +395,21 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 9,
+    backgroundColor: "#F8FBFF",
+  },
+  parentRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 8,
+  },
+  parentIcon: {
     marginRight: 8,
+    minWidth: 84,
   },
-  addWordButton: {
-    borderRadius: 10,
-    backgroundColor: "#1A4D9C",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  addWordText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
+  parentText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#334D67",
+    lineHeight: 20,
   },
 });

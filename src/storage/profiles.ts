@@ -1,5 +1,23 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { KidLearningStats, KidProfile, KidSettings, ProfilesStore, STORAGE_KEY, createDefaultStore, createKidProfile } from "./schema";
+import {
+  KidLearningStats,
+  KidProfile,
+  KidSettings,
+  ProfilesStore,
+  STORAGE_KEY,
+  createDefaultSettings,
+  createDefaultStore,
+  createKidProfile,
+} from "./schema";
+
+function normalizeSettings(settings: KidSettings | null | undefined): KidSettings {
+  const defaults = createDefaultSettings();
+  return {
+    ...defaults,
+    ...settings,
+    wordList: Array.isArray(settings?.wordList) && settings?.wordList.length ? settings.wordList : defaults.wordList,
+  };
+}
 
 function ensureValidStore(store: ProfilesStore | null | undefined): ProfilesStore {
   if (!store || !Array.isArray(store.profiles) || store.profiles.length === 0) {
@@ -7,8 +25,11 @@ function ensureValidStore(store: ProfilesStore | null | undefined): ProfilesStor
   }
   const activeExists = store.profiles.some((profile) => profile.id === store.activeProfileId);
   return {
-    ...store,
     activeProfileId: activeExists ? store.activeProfileId : store.profiles[0].id,
+    profiles: store.profiles.map((profile) => ({
+      ...profile,
+      settings: normalizeSettings(profile.settings),
+    })),
   };
 }
 

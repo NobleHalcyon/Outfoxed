@@ -1,22 +1,33 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import {
+  Fredoka_400Regular,
+  Fredoka_500Medium,
+  Fredoka_600SemiBold,
+  Fredoka_700Bold,
+} from "@expo-google-fonts/fredoka";
+import { useFonts } from "expo-font";
 import React from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { AudioManagerProvider } from "./src/audio/AudioManager";
 import { AppProvider, useAppContext } from "./src/app/AppContext";
 import { RootStackParamList } from "./src/app/navigation";
+import { AppTextFontProvider } from "./src/components/AppText";
 import FocusSetupScreen from "./src/screens/FocusSetupScreen";
 import GameScreen from "./src/screens/GameScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
+import { resolveBackgroundColor } from "./src/theme/theme";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function AppNavigator(): React.JSX.Element {
-  const { ready } = useAppContext();
+  const { ready, activeProfile } = useAppContext();
+  const backgroundColor = resolveBackgroundColor(activeProfile?.settings.backgroundThemeId);
 
   if (!ready) {
     return (
-      <View style={styles.loading}>
+      <View style={[styles.loading, { backgroundColor }]}>
         <ActivityIndicator size="large" color="#1A4D9C" />
       </View>
     );
@@ -41,10 +52,31 @@ function AppNavigator(): React.JSX.Element {
 }
 
 export default function App(): React.JSX.Element {
+  const [fontsLoaded, fontError] = useFonts({
+    Fredoka_400Regular,
+    Fredoka_500Medium,
+    Fredoka_600SemiBold,
+    Fredoka_700Bold,
+  });
+
+  const fontReady = fontsLoaded || Boolean(fontError);
+
+  if (!fontReady) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#1A4D9C" />
+      </View>
+    );
+  }
+
   return (
-    <AppProvider>
-      <AppNavigator />
-    </AppProvider>
+    <AppTextFontProvider loaded={fontsLoaded}>
+      <AppProvider>
+        <AudioManagerProvider>
+          <AppNavigator />
+        </AudioManagerProvider>
+      </AppProvider>
+    </AppTextFontProvider>
   );
 }
 

@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, StyleSheet, View } from "react-native";
 import Svg, { Circle, Path, Polygon, Rect } from "react-native-svg";
 import { RoundOption, ShapeId } from "../game/types";
+import AppText from "./AppText";
+import IconButton from "./IconButton";
 
 interface QuadrantCardProps {
   option: RoundOption;
   disabled: boolean;
   wiggleToken: number;
+  size: number;
   onPress: (option: RoundOption) => void;
 }
 
@@ -27,7 +30,7 @@ function shapePoints(shape: ShapeId): string {
   }
 }
 
-function ShapeGlyph({ shape, color, size = 84 }: { shape: ShapeId; color: string; size?: number }): React.JSX.Element {
+function ShapeGlyph({ shape, color, size = 82 }: { shape: ShapeId; color: string; size?: number }): React.JSX.Element {
   const viewBox = "0 0 100 100";
   if (shape === "circle") {
     return (
@@ -66,12 +69,11 @@ function QuantityGlyph({
   shape: ShapeId;
   color: string;
 }): React.JSX.Element {
-  const dots = Array.from({ length: quantity }, (_, index) => index);
   return (
     <View style={styles.quantityWrap}>
-      {dots.map((index) => (
+      {Array.from({ length: quantity }).map((_, index) => (
         <View key={index} style={styles.quantityItem}>
-          <ShapeGlyph shape={shape} color={color} size={36} />
+          <ShapeGlyph shape={shape} color={color} size={32} />
         </View>
       ))}
     </View>
@@ -82,6 +84,7 @@ export default function QuadrantCard({
   option,
   disabled,
   wiggleToken,
+  size,
   onPress,
 }: QuadrantCardProps): React.JSX.Element {
   const wiggleX = useRef(new Animated.Value(0)).current;
@@ -91,9 +94,9 @@ export default function QuadrantCard({
       return;
     }
     Animated.sequence([
-      Animated.timing(wiggleX, { toValue: -8, duration: 60, useNativeDriver: true, easing: Easing.linear }),
-      Animated.timing(wiggleX, { toValue: 8, duration: 80, useNativeDriver: true, easing: Easing.linear }),
-      Animated.timing(wiggleX, { toValue: -6, duration: 70, useNativeDriver: true, easing: Easing.linear }),
+      Animated.timing(wiggleX, { toValue: -8, duration: 65, useNativeDriver: true, easing: Easing.linear }),
+      Animated.timing(wiggleX, { toValue: 8, duration: 75, useNativeDriver: true, easing: Easing.linear }),
+      Animated.timing(wiggleX, { toValue: -6, duration: 65, useNativeDriver: true, easing: Easing.linear }),
       Animated.timing(wiggleX, { toValue: 0, duration: 70, useNativeDriver: true, easing: Easing.linear }),
     ]).start();
   }, [wiggleToken, wiggleX]);
@@ -101,9 +104,17 @@ export default function QuadrantCard({
   const content = useMemo(() => {
     switch (option.kind) {
       case "text":
-        return <Text style={[styles.bigText, { color: option.style.foregroundColor }]}>{option.text}</Text>;
+        return (
+          <AppText weight="bold" style={[styles.bigText, { color: option.style.foregroundColor }]}>
+            {option.text}
+          </AppText>
+        );
       case "color":
-        return <Text style={[styles.colorText, { color: option.style.foregroundColor }]}>{option.text}</Text>;
+        return (
+          <AppText weight="bold" style={[styles.colorText, { color: option.style.foregroundColor }]}>
+            {option.text}
+          </AppText>
+        );
       case "shape":
         return <ShapeGlyph shape={option.shape ?? "circle"} color={option.style.shapeColor ?? option.style.foregroundColor} />;
       case "quantity":
@@ -117,72 +128,87 @@ export default function QuadrantCard({
       case "letter_shape":
         return (
           <View style={styles.letterShapeWrap}>
-            <ShapeGlyph shape={option.shape ?? "circle"} color={option.style.shapeColor ?? option.style.foregroundColor} size={88} />
-            <Text style={[styles.overlayLetter, { color: option.style.foregroundColor }]}>{option.shapeLetter}</Text>
+            <ShapeGlyph shape={option.shape ?? "circle"} color={option.style.shapeColor ?? option.style.foregroundColor} size={82} />
+            <AppText weight="bold" style={[styles.overlayLetter, { color: option.style.foregroundColor }]}>
+              {option.shapeLetter}
+            </AppText>
           </View>
         );
       case "word":
         return (
-          <Text style={styles.wordText}>
+          <AppText weight="bold" style={styles.wordText}>
             {(option.text ?? "").split("").map((letter, index) => (
-              <Text key={`${letter}-${index}`} style={{ color: option.letterColors?.[index] ?? option.style.foregroundColor }}>
+              <AppText
+                key={`${letter}-${index}`}
+                weight="bold"
+                style={{ color: option.letterColors?.[index] ?? option.style.foregroundColor }}
+              >
                 {letter}
-              </Text>
+              </AppText>
             ))}
-          </Text>
+          </AppText>
         );
       default:
-        return <Text style={[styles.bigText, { color: option.style.foregroundColor }]}>{option.text}</Text>;
+        return (
+          <AppText weight="bold" style={[styles.bigText, { color: option.style.foregroundColor }]}>
+            {option.text}
+          </AppText>
+        );
     }
   }, [option]);
 
   return (
-    <Animated.View style={[styles.cardContainer, { transform: [{ translateX: wiggleX }] }]}>
-      <Pressable
+    <Animated.View style={[styles.cardContainer, { width: size, height: size, transform: [{ translateX: wiggleX }] }]}>
+      <IconButton
         disabled={disabled}
-        style={({ pressed }) => [
-          styles.card,
-          {
-            backgroundColor: option.style.backgroundColor,
-            opacity: disabled ? 0.7 : pressed ? 0.86 : 1,
-          },
-        ]}
+        playPop
+        style={[styles.cardButton, { backgroundColor: option.style.backgroundColor }]}
         onPress={() => onPress(option)}
       >
+        <View pointerEvents="none" style={styles.depthHighlight} />
         {content}
-      </Pressable>
+      </IconButton>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   cardContainer: {
-    width: "48.5%",
-    aspectRatio: 1,
-    marginBottom: "3%",
+    marginBottom: 10,
   },
-  card: {
+  cardButton: {
     flex: 1,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
+    borderRadius: 24,
     borderWidth: 2,
-    borderColor: "#D0DCE7",
+    borderColor: "#CFDCE8",
     paddingHorizontal: 8,
+    shadowColor: "#20354D",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+    overflow: "hidden",
+  },
+  depthHighlight: {
+    position: "absolute",
+    top: 6,
+    left: 10,
+    right: 10,
+    height: 14,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.23)",
   },
   bigText: {
-    fontSize: 56,
-    fontWeight: "800",
+    fontSize: 58,
   },
   colorText: {
-    fontSize: 26,
-    fontWeight: "800",
+    fontSize: 28,
     textAlign: "center",
   },
   quantityWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    width: "86%",
+    width: "88%",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -192,19 +218,17 @@ const styles = StyleSheet.create({
     marginVertical: 2,
   },
   letterShapeWrap: {
-    width: 96,
-    height: 96,
+    width: 98,
+    height: 98,
     alignItems: "center",
     justifyContent: "center",
   },
   overlayLetter: {
     position: "absolute",
     fontSize: 42,
-    fontWeight: "900",
   },
   wordText: {
     fontSize: 38,
-    fontWeight: "900",
     textTransform: "lowercase",
   },
 });

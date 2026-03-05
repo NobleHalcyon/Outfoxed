@@ -1,9 +1,13 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useMemo, useState } from "react";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
+import { useAppContext } from "../app/AppContext";
 import { RootStackParamList } from "../app/navigation";
+import AppText from "../components/AppText";
+import IconButton from "../components/IconButton";
 import { ALL_TOPICS, HIGH_TOPICS, LOW_TOPICS, MODERATE_TOPICS, TOPIC_META } from "../game/datasets";
 import { DifficultyBucket, TopicId } from "../game/types";
+import { resolveBackgroundColor } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FocusSetup">;
 
@@ -28,9 +32,11 @@ function topicsForBucket(bucket: DifficultyBucket): TopicId[] {
 }
 
 export default function FocusSetupScreen({ navigation }: Props): React.JSX.Element {
+  const { activeProfile } = useAppContext();
   const [bucket, setBucket] = useState<DifficultyBucket>("low");
   const [topic, setTopic] = useState<TopicId>("letters");
   const topics = useMemo(() => topicsForBucket(bucket), [bucket]);
+  const backgroundColor = resolveBackgroundColor(activeProfile?.settings.backgroundThemeId);
 
   const selectBucket = (next: DifficultyBucket): void => {
     setBucket(next);
@@ -41,37 +47,58 @@ export default function FocusSetupScreen({ navigation }: Props): React.JSX.Eleme
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Focus Setup</Text>
-        <Text style={styles.section}>Difficulty Bucket</Text>
+        <AppText weight="bold" style={styles.title}>
+          Focus Setup
+        </AppText>
+
+        <AppText weight="semibold" style={styles.section}>
+          Difficulty Bucket
+        </AppText>
         <View style={styles.optionsWrap}>
-          {BUCKETS.map((entry) => (
-            <Pressable
-              key={entry.id}
-              style={[styles.chip, bucket === entry.id && styles.chipSelected]}
-              onPress={() => selectBucket(entry.id)}
-            >
-              <Text style={[styles.chipText, bucket === entry.id && styles.chipTextSelected]}>{entry.label}</Text>
-            </Pressable>
-          ))}
+          {BUCKETS.map((entry) => {
+            const selected = bucket === entry.id;
+            return (
+              <IconButton
+                key={entry.id}
+                icon="eye"
+                label={entry.label}
+                onPress={() => selectBucket(entry.id)}
+                style={[styles.chip, selected && styles.chipSelected]}
+                textColor={selected ? "#FFFFFF" : "#1E3553"}
+                iconColor={selected ? "#FFFFFF" : "#1E3553"}
+                haptic="light"
+              />
+            );
+          })}
         </View>
 
-        <Text style={styles.section}>Topic</Text>
+        <AppText weight="semibold" style={styles.section}>
+          Topic
+        </AppText>
         <View style={styles.optionsWrap}>
-          {TOPIC_META.filter((entry) => topics.includes(entry.id)).map((entry) => (
-            <Pressable
-              key={entry.id}
-              style={[styles.topicCard, topic === entry.id && styles.topicCardSelected]}
-              onPress={() => setTopic(entry.id)}
-            >
-              <Text style={[styles.topicText, topic === entry.id && styles.topicTextSelected]}>{entry.label}</Text>
-            </Pressable>
-          ))}
+          {TOPIC_META.filter((entry) => topics.includes(entry.id)).map((entry) => {
+            const selected = topic === entry.id;
+            return (
+              <IconButton
+                key={entry.id}
+                icon="eye"
+                label={entry.label}
+                onPress={() => setTopic(entry.id)}
+                style={[styles.topicCard, selected && styles.topicCardSelected]}
+                textColor={selected ? "#FFFFFF" : "#1E3553"}
+                iconColor={selected ? "#FFFFFF" : "#1E3553"}
+                haptic="light"
+              />
+            );
+          })}
         </View>
 
-        <Pressable
-          style={styles.startButton}
+        <IconButton
+          icon="eye"
+          label="Start Focus"
+          size="large"
           onPress={() =>
             navigation.replace("Game", {
               mode: "focus",
@@ -79,9 +106,11 @@ export default function FocusSetupScreen({ navigation }: Props): React.JSX.Eleme
               topic,
             })
           }
-        >
-          <Text style={styles.startButtonText}>Start</Text>
-        </Pressable>
+          style={styles.startButton}
+          iconColor="#1A4D9C"
+          textColor="#1A4D9C"
+          haptic="light"
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -90,83 +119,47 @@ export default function FocusSetupScreen({ navigation }: Props): React.JSX.Eleme
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#F4F8FC",
   },
   content: {
     padding: 16,
     paddingBottom: 30,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "900",
+    fontSize: 34,
     color: "#18314F",
     marginBottom: 18,
   },
   section: {
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 19,
     color: "#27476B",
     marginBottom: 8,
   },
   optionsWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginBottom: 20,
+    gap: 8,
+    marginBottom: 18,
   },
   chip: {
     borderRadius: 999,
-    borderWidth: 2,
-    borderColor: "#B9CCE0",
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    marginRight: 8,
-    marginBottom: 8,
+    minWidth: 84,
   },
   chipSelected: {
     backgroundColor: "#1A4D9C",
     borderColor: "#1A4D9C",
   },
-  chipText: {
-    color: "#1E3553",
-    fontWeight: "800",
-  },
-  chipTextSelected: {
-    color: "#FFFFFF",
-  },
   topicCard: {
     width: "48%",
-    marginRight: "2%",
-    marginBottom: 10,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: "#B9CCE0",
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 14,
-    paddingHorizontal: 10,
+    minHeight: 64,
+    borderRadius: 16,
   },
   topicCardSelected: {
     backgroundColor: "#FF8C42",
     borderColor: "#FF8C42",
   },
-  topicText: {
-    textAlign: "center",
-    color: "#1E3553",
-    fontWeight: "700",
-  },
-  topicTextSelected: {
-    color: "#FFFFFF",
-  },
   startButton: {
-    marginTop: 8,
-    borderRadius: 16,
-    backgroundColor: "#1A4D9C",
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  startButtonText: {
-    color: "#FFFFFF",
-    fontSize: 22,
-    fontWeight: "900",
+    marginTop: 4,
+    borderRadius: 18,
+    minHeight: 120,
   },
 });

@@ -1,22 +1,25 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Audio } from "expo-av";
-import * as Speech from "expo-speech";
+import * as Haptics from "expo-haptics";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAudioManager } from "../audio/AudioManager";
+import { useAppContext } from "../app/AppContext";
+import { RootStackParamList } from "../app/navigation";
+import AppText from "../components/AppText";
 import ConfettiOverlay from "../components/ConfettiOverlay";
+import IconButton from "../components/IconButton";
 import PromptPanel from "../components/PromptPanel";
 import QuadrantGrid from "../components/QuadrantGrid";
 import TimerBar from "../components/TimerBar";
-import { RootStackParamList } from "../app/navigation";
-import { useAppContext } from "../app/AppContext";
 import { selectAdaptiveTarget } from "../game/adaptive";
 import { getDifficultyForTopic } from "../game/datasets";
 import { generateRound, getItemsForTopic } from "../game/generator";
 import { advanceMemoryPhase, createMemoryPhaseState, isOptionsInteractive, isPromptHidden } from "../game/memory";
 import { applyCorrectToProgression, applyNoClearToProgression, pickProgressionTopic } from "../game/progression";
 import { RoundDefinition, RoundOption } from "../game/types";
-import NixFox from "../mascot/NixFox";
 import { KidLearningStats } from "../storage/schema";
+import { resolveBackgroundColor } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Game">;
 
@@ -51,6 +54,10 @@ function randomPickWithoutRepeat(pool: string[], lastItem?: string): string {
 
 export default function GameScreen({ navigation, route }: Props): React.JSX.Element {
   const { activeProfile, updateActiveStats } = useAppContext();
+  const { playWrong, playYay } = useAudioManager();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
   const [round, setRound] = useState<RoundDefinition | null>(null);
   const [roundStartedAt, setRoundStartedAt] = useState(0);
   const [memoryState, setMemoryState] = useState(createMemoryPhaseState(Date.now(), false));
@@ -62,9 +69,6 @@ export default function GameScreen({ navigation, route }: Props): React.JSX.Elem
   const activeProfileRef = useRef(activeProfile);
   const roundRef = useRef<RoundDefinition | null>(null);
   const roundResolvedRef = useRef(false);
-  const wiggleLastAtRef = useRef<Record<string, number>>({});
-  const soundRef = useRef<Audio.Sound | null>(null);
-  const tailSweep = useRef(new Animated.Value(0)).current;
 
   activeProfileRef.current = activeProfile;
   roundRef.current = round;
@@ -73,30 +77,27 @@ export default function GameScreen({ navigation, route }: Props): React.JSX.Elem
   const score = activeProfile?.stats.progression.score ?? 0;
   const streak = activeProfile?.stats.progression.streak ?? 0;
 
+  const isLowDifficulty = useMemo(() => {
+    if (!round) {
+      return route.params.mode === "focus" && route.params.bucket === "low";
+    }
+    return round.difficulty === 0;
+  }, [round, route.params]);
+
+  const timerEnabled = Boolean(settings?.showTimer) && !isLowDifficulty;
+  const memoryEnabled = Boolean(settings?.memoryMode) && !isLowDifficulty;
+
+  const backgroundColor = resolveBackgroundColor(settings?.backgroundThemeId);
+
   const config = useMemo(
     () => ({
-      enabled: Boolean(settings?.memoryMode),
+      enabled: memoryEnabled,
       previewMs: settings?.previewMs ?? 1500,
       helpMs: settings?.helpMs ?? 6000,
       hintMs: settings?.hintMs ?? 800,
     }),
-    [settings?.helpMs, settings?.hintMs, settings?.memoryMode, settings?.previewMs],
+    [memoryEnabled, settings?.helpMs, settings?.hintMs, settings?.previewMs],
   );
-
-  const playYay = async (): Promise<void> => {
-    if (!settings?.soundEnabled) {
-      return;
-    }
-    try {
-      if (soundRef.current) {
-        await soundRef.current.replayAsync();
-      } else {
-        Speech.speak("Yayy!");
-      }
-    } catch {
-      Speech.speak("Yayy!");
-    }
-  };
 
   const markRoundShown = (generatedRound: RoundDefinition, startedAt: number): void => {
     updateActiveStats((stats) => {
@@ -200,6 +201,8 @@ export default function GameScreen({ navigation, route }: Props): React.JSX.Elem
             recentTopics: profile.stats.recentTopics,
           });
 
+    const topicDifficulty = getDifficultyForTopic(topic);
+    const lowDifficultyRound = topicDifficulty === 0;
     const pool = getItemsForTopic(topic, profile.settings.wordList);
     const targetItemId = profile.settings.adaptivePracticeEnabled
       ? selectAdaptiveTarget({
@@ -214,7 +217,7 @@ export default function GameScreen({ navigation, route }: Props): React.JSX.Elem
     const generated = generateRound({
       topic,
       timeoutMs: profile.settings.timeoutMs,
-      difficulty: getDifficultyForTopic(topic),
+      difficulty: topicDifficulty,
       wordList: profile.settings.wordList,
       targetItemId,
     });
@@ -224,7 +227,7 @@ export default function GameScreen({ navigation, route }: Props): React.JSX.Elem
     setLocked(false);
     roundResolvedRef.current = false;
     setRoundStartedAt(startedAt);
-    setMemoryState(createMemoryPhaseState(startedAt, profile.settings.memoryMode));
+    setMemoryState(createMemoryPhaseState(startedAt, profile.settings.memoryMode && !lowDifficultyRound));
     setRound(generated);
     markRoundShown(generated, startedAt);
   };
@@ -237,14 +240,17 @@ export default function GameScreen({ navigation, route }: Props): React.JSX.Elem
     roundResolvedRef.current = true;
     setLocked(true);
     markRoundTimeout(currentRound);
-    setTimeout(() => {
-      startNextRound();
-    }, 260);
+    setTimeout(() => startNextRound(), 220);
   };
 
   const onSelectOption = (option: RoundOption): void => {
     const currentRound = roundRef.current;
-    if (!currentRound || roundResolvedRef.current || locked || !isOptionsInteractive(memoryState)) {
+    if (!currentRound || roundResolvedRef.current || locked) {
+      return;
+    }
+
+    if (!isOptionsInteractive(memoryState)) {
+      void Haptics.selectionAsync();
       return;
     }
 
@@ -253,52 +259,25 @@ export default function GameScreen({ navigation, route }: Props): React.JSX.Elem
       setLocked(true);
       setConfettiVisible(true);
       const responseMs = Date.now() - roundStartedAt;
-      void playYay();
+      playYay();
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       markRoundCorrect(currentRound, responseMs);
-      setTimeout(() => {
-        startNextRound();
-      }, 700);
-      setTimeout(() => {
-        setConfettiVisible(false);
-      }, 1200);
+      setTimeout(() => startNextRound(), 700);
+      setTimeout(() => setConfettiVisible(false), 1200);
       return;
     }
 
-    const tappedAt = Date.now();
-    const lastWiggle = wiggleLastAtRef.current[option.optionKey] ?? 0;
-    if (tappedAt - lastWiggle >= 800) {
-      wiggleLastAtRef.current[option.optionKey] = tappedAt;
-      setTimeout(() => {
-        setWiggleTokens((current) => ({
-          ...current,
-          [option.optionKey]: (current[option.optionKey] ?? 0) + 1,
-        }));
-      }, 400);
-    }
+    playWrong();
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setWiggleTokens((current) => ({
+      ...current,
+      [option.optionKey]: (current[option.optionKey] ?? 0) + 1,
+    }));
   };
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 100);
     return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    Audio.Sound.createAsync(require("../../assets/audio/yay.mp3"))
-      .then(({ sound }) => {
-        if (mounted) {
-          soundRef.current = sound;
-        }
-      })
-      .catch(() => {
-        soundRef.current = null;
-      });
-    return () => {
-      mounted = false;
-      if (soundRef.current) {
-        void soundRef.current.unloadAsync();
-      }
-    };
   }, []);
 
   const sessionKey =
@@ -318,96 +297,68 @@ export default function GameScreen({ navigation, route }: Props): React.JSX.Elem
       return;
     }
     setMemoryState((current) => advanceMemoryPhase(current, now, config));
-    if (now - roundStartedAt >= round.timeoutMs) {
+    if (timerEnabled && now - roundStartedAt >= round.timeoutMs) {
       resolveTimeout();
     }
-  }, [config, now, round, roundStartedAt]);
+  }, [config, now, round, roundStartedAt, timerEnabled]);
 
   const timeLeftMs = round ? Math.max(0, round.timeoutMs - (now - roundStartedAt)) : 0;
   const timerProgress = round ? timeLeftMs / round.timeoutMs : 1;
   const promptHidden = isPromptHidden(memoryState, config.enabled);
   const interactionDisabled = locked || !round || !isOptionsInteractive(memoryState);
 
-  useEffect(() => {
-    if (!promptHidden) {
-      tailSweep.stopAnimation();
-      return;
-    }
-    tailSweep.setValue(0);
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(tailSweep, {
-          toValue: 1,
-          duration: 450,
-          useNativeDriver: true,
-        }),
-        Animated.timing(tailSweep, {
-          toValue: 0,
-          duration: 450,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [promptHidden, tailSweep]);
+  const contentWidth = width - 24;
+  const availableHeight = Math.max(420, height - insets.top - insets.bottom - 22);
+  const promptHeight = Math.min(availableHeight * 0.3, 230);
+  const timerHeight = timerEnabled ? 34 : 0;
+  const gridDimension = Math.min(contentWidth, availableHeight - promptHeight - timerHeight - 102);
+  const tileSize = Math.max(82, Math.floor((gridDimension - 12) / 2));
+  const gridWidth = tileSize * 2 + 12;
 
   if (!activeProfile || !round || !settings) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
         <View style={styles.loadingWrap}>
-          <Text style={styles.loadingText}>Preparing round...</Text>
+          <AppText weight="bold" style={styles.loadingText}>
+            Preparing round...
+          </AppText>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
       <View style={styles.topBar}>
-        <Pressable style={styles.backButton} onPress={() => navigation.replace("Home")}>
-          <Text style={styles.backText}>Home</Text>
-        </Pressable>
-        {settings.showHud ? (
-          <Text style={styles.hudText}>Score {score} · Streak {streak}</Text>
-        ) : (
-          <Text style={styles.hudText}>{route.params.mode === "focus" ? "Focus Mode" : "Progression Mode"}</Text>
-        )}
+        <IconButton icon="home" label="Home" onPress={() => navigation.replace("Home")} haptic="light" />
+        <AppText weight="semibold" style={styles.hudText}>
+          {settings.showHud ? `Score ${score} • Streak ${streak}` : route.params.mode === "focus" ? "Focus Mode" : "Progression Mode"}
+        </AppText>
       </View>
 
-      <View style={styles.promptArea}>
+      <View style={[styles.promptArea, { height: promptHeight }]}>
         <PromptPanel prompt={round.prompt} hidden={promptHidden} />
-        <View style={styles.nixWrap}>
-          <NixFox size={84} />
-        </View>
-        {promptHidden ? (
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.tailCover,
-              {
-                transform: [
-                  {
-                    translateX: tailSweep.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [-16, 18],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
-        ) : null}
       </View>
 
-      <View style={styles.gridArea}>
-        {settings.showTimer ? (
+      <View style={styles.gridSection}>
+        {timerEnabled ? (
           <View style={styles.timerWrap}>
             <TimerBar progress={timerProgress} />
-            <Text style={styles.timerLabel}>{Math.ceil(timeLeftMs / 1000)}s</Text>
+            <AppText weight="bold" style={styles.timerLabel}>
+              {Math.ceil(timeLeftMs / 1000)}s
+            </AppText>
           </View>
         ) : null}
-        <QuadrantGrid options={round.options} disabled={interactionDisabled} wiggleTokens={wiggleTokens} onSelect={onSelectOption} />
+
+        <View style={[styles.gridWrap, { width: gridWidth }]}>
+          <QuadrantGrid
+            options={round.options}
+            disabled={interactionDisabled}
+            wiggleTokens={wiggleTokens}
+            tileSize={tileSize}
+            onSelect={onSelectOption}
+          />
+        </View>
       </View>
 
       <ConfettiOverlay visible={confettiVisible} />
@@ -418,9 +369,8 @@ export default function GameScreen({ navigation, route }: Props): React.JSX.Elem
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#EAF2FB",
-    paddingHorizontal: 10,
-    paddingTop: 6,
+    paddingHorizontal: 12,
+    paddingTop: 8,
     paddingBottom: 12,
   },
   loadingWrap: {
@@ -429,69 +379,42 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   loadingText: {
-    fontSize: 18,
+    fontSize: 19,
     color: "#21405F",
-    fontWeight: "700",
   },
   topBar: {
-    height: "8%",
-    minHeight: 48,
+    minHeight: 54,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  backButton: {
-    borderRadius: 999,
-    backgroundColor: "#1A4D9C",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  backText: {
-    color: "#FFFFFF",
-    fontWeight: "800",
-  },
   hudText: {
     color: "#21405F",
-    fontWeight: "800",
+    fontSize: 18,
   },
   promptArea: {
-    height: "20%",
-    minHeight: 130,
-    justifyContent: "center",
+    marginTop: 8,
   },
-  nixWrap: {
-    position: "absolute",
-    right: -4,
-    bottom: -4,
-  },
-  tailCover: {
-    position: "absolute",
-    right: 58,
-    top: "32%",
-    width: 96,
-    height: 54,
-    borderTopLeftRadius: 26,
-    borderBottomLeftRadius: 30,
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 16,
-    backgroundColor: "rgba(242, 141, 59, 0.7)",
-  },
-  gridArea: {
-    height: "72%",
-    paddingTop: 8,
-    width: "100%",
+  gridSection: {
+    flex: 1,
+    alignItems: "center",
+    paddingTop: 10,
   },
   timerWrap: {
-    marginBottom: 8,
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 8,
   },
   timerLabel: {
     marginLeft: 8,
-    color: "#21405F",
-    fontWeight: "800",
-    minWidth: 34,
+    minWidth: 36,
     textAlign: "right",
+    color: "#21405F",
+    fontSize: 18,
+  },
+  gridWrap: {
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

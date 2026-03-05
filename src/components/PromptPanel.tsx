@@ -1,7 +1,8 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Svg, { Circle, Path, Polygon, Rect } from "react-native-svg";
 import { PromptData, ShapeId } from "../game/types";
+import AppText from "./AppText";
 
 interface PromptPanelProps {
   prompt: PromptData;
@@ -25,7 +26,7 @@ function shapePoints(shape: ShapeId): string {
   }
 }
 
-function ShapeVisual({ shape, color, size = 54 }: { shape: ShapeId; color: string; size?: number }): React.JSX.Element {
+function ShapeVisual({ shape, color, size = 130 }: { shape: ShapeId; color: string; size?: number }): React.JSX.Element {
   if (shape === "circle") {
     return (
       <Svg width={size} height={size} viewBox="0 0 100 100">
@@ -67,7 +68,7 @@ function QuantityVisual({
     <View style={styles.quantityWrap}>
       {Array.from({ length: quantity }).map((_, index) => (
         <View key={index} style={styles.quantityItem}>
-          <ShapeVisual shape={shape} color={color} size={28} />
+          <ShapeVisual shape={shape} color={color} size={42} />
         </View>
       ))}
     </View>
@@ -76,152 +77,120 @@ function QuantityVisual({
 
 export default function PromptPanel({ prompt, hidden }: PromptPanelProps): React.JSX.Element {
   return (
-    <View style={styles.panel}>
-      <Text style={styles.title}>{prompt.title}</Text>
-      <View style={styles.targetWrap}>
-        {hidden ? (
-          <View style={styles.hiddenTarget}>
-            <Text style={styles.hiddenText}>?</Text>
-          </View>
-        ) : (
-          <View style={[styles.visibleTarget, { backgroundColor: prompt.backgroundColor }]}>
-            {prompt.kind === "text" && (
-              <Text style={[styles.text, { color: prompt.foregroundColor }]}>{prompt.text}</Text>
-            )}
-            {prompt.kind === "color" && (
-              <View style={[styles.swatch, { backgroundColor: prompt.swatchColor ?? "#EEE" }]}>
-                <Text style={[styles.swatchLabel, { color: prompt.foregroundColor }]}>{prompt.text}</Text>
-              </View>
-            )}
-            {prompt.kind === "shape" && (
-              <ShapeVisual shape={prompt.shape ?? "circle"} color={prompt.shapeColor ?? prompt.foregroundColor} />
-            )}
-            {prompt.kind === "quantity" && (
-              <QuantityVisual
-                quantity={prompt.quantity ?? 1}
+    <View style={styles.card}>
+      {hidden ? (
+        <AppText weight="bold" style={styles.hiddenText}>
+          ?
+        </AppText>
+      ) : (
+        <>
+          {prompt.kind === "text" && (
+            <AppText weight="bold" style={[styles.textPrompt, { color: prompt.foregroundColor }]}>
+              {prompt.text}
+            </AppText>
+          )}
+          {prompt.kind === "color" && <View style={[styles.colorSwatch, { backgroundColor: prompt.swatchColor ?? "#FFFFFF" }]} />}
+          {prompt.kind === "shape" && (
+            <ShapeVisual shape={prompt.shape ?? "circle"} color={prompt.shapeColor ?? prompt.foregroundColor} />
+          )}
+          {prompt.kind === "quantity" && (
+            <QuantityVisual
+              quantity={prompt.quantity ?? 1}
+              shape={prompt.shape ?? "circle"}
+              color={prompt.shapeColor ?? prompt.foregroundColor}
+            />
+          )}
+          {prompt.kind === "letter_shape" && (
+            <View style={styles.letterShapeWrap}>
+              <ShapeVisual
                 shape={prompt.shape ?? "circle"}
                 color={prompt.shapeColor ?? prompt.foregroundColor}
+                size={138}
               />
-            )}
-            {prompt.kind === "letter_shape" && (
-              <View style={styles.letterShapeWrap}>
-                <ShapeVisual shape={prompt.shape ?? "circle"} color={prompt.shapeColor ?? prompt.foregroundColor} size={60} />
-                <Text style={[styles.overlayLetter, { color: prompt.foregroundColor }]}>{prompt.shapeLetter}</Text>
-              </View>
-            )}
-            {prompt.kind === "word" && (
-              <Text style={styles.wordText}>
-                {(prompt.text ?? "").split("").map((letter, index) => (
-                  <Text key={`${letter}-${index}`} style={{ color: prompt.letterColors?.[index] ?? prompt.foregroundColor }}>
-                    {letter}
-                  </Text>
-                ))}
-              </Text>
-            )}
-          </View>
-        )}
-      </View>
-      {prompt.subtitle ? <Text style={styles.subtitle}>{prompt.subtitle}</Text> : null}
+              <AppText weight="bold" style={[styles.overlayLetter, { color: prompt.foregroundColor }]}>
+                {prompt.shapeLetter}
+              </AppText>
+            </View>
+          )}
+          {prompt.kind === "word" && (
+            <AppText weight="bold" style={styles.wordText}>
+              {(prompt.text ?? "").split("").map((letter, index) => (
+                <AppText
+                  key={`${letter}-${index}`}
+                  weight="bold"
+                  style={{ color: prompt.letterColors?.[index] ?? prompt.foregroundColor }}
+                >
+                  {letter}
+                </AppText>
+              ))}
+            </AppText>
+          )}
+        </>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  panel: {
+  card: {
     width: "100%",
-    height: "100%",
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 2,
-    borderColor: "#DCE7F2",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#1F3653",
-  },
-  subtitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#355070",
-  },
-  targetWrap: {
     flex: 1,
-    justifyContent: "center",
-    width: "100%",
-    alignItems: "center",
-    paddingVertical: 4,
-  },
-  visibleTarget: {
-    minWidth: 140,
-    minHeight: 72,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#C3D5E5",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  hiddenTarget: {
-    minWidth: 140,
-    minHeight: 72,
-    borderRadius: 14,
+    borderRadius: 28,
     borderWidth: 2,
-    borderStyle: "dashed",
-    borderColor: "#C3D5E5",
+    borderColor: "#D4DEE8",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#EEF5FC",
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    shadowColor: "#1C324B",
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
   },
   hiddenText: {
-    fontSize: 34,
-    fontWeight: "800",
-    color: "#97AFC9",
+    fontSize: 88,
+    color: "#B1C0D0",
   },
-  text: {
-    fontSize: 42,
-    fontWeight: "900",
+  textPrompt: {
+    fontSize: 104,
+    lineHeight: 112,
+    textAlign: "center",
   },
-  swatch: {
-    width: 148,
-    height: 62,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  swatchLabel: {
-    fontSize: 24,
-    fontWeight: "900",
+  colorSwatch: {
+    width: "86%",
+    maxWidth: 320,
+    aspectRatio: 2.3,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: "#D9E1E8",
   },
   quantityWrap: {
+    width: "88%",
+    maxWidth: 320,
     flexDirection: "row",
     flexWrap: "wrap",
-    width: 114,
     justifyContent: "center",
   },
   quantityItem: {
-    width: "33%",
+    width: "33.33%",
     alignItems: "center",
+    marginVertical: 3,
   },
   letterShapeWrap: {
-    width: 64,
-    height: 64,
+    width: 160,
+    height: 160,
     alignItems: "center",
     justifyContent: "center",
   },
   overlayLetter: {
     position: "absolute",
-    fontSize: 28,
-    fontWeight: "900",
+    fontSize: 64,
   },
   wordText: {
-    fontSize: 30,
-    fontWeight: "900",
+    fontSize: 58,
     textTransform: "lowercase",
+    textAlign: "center",
   },
 });

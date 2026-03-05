@@ -1,31 +1,22 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useMemo, useState } from "react";
-import {
-  Alert,
-  Image,
-  Modal,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { RootStackParamList } from "../app/navigation";
-import NixFox from "../mascot/NixFox";
+import { Alert, Image, Modal, SafeAreaView, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useAppContext } from "../app/AppContext";
+import { RootStackParamList } from "../app/navigation";
+import AppText from "../components/AppText";
+import IconButton from "../components/IconButton";
+import { resolveBackgroundColor } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
-
 type EditorMode = "add" | "rename" | null;
 
 export default function HomeScreen({ navigation }: Props): React.JSX.Element {
   const { activeProfile, store, setActiveProfile, addKid, renameKid, deleteKid } = useAppContext();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>(null);
   const [draftName, setDraftName] = useState("");
-
   const canDelete = useMemo(() => (store?.profiles.length ?? 0) > 1, [store?.profiles.length]);
+  const backgroundColor = resolveBackgroundColor(activeProfile?.settings.backgroundThemeId);
 
   const openAdd = (): void => {
     setDraftName("");
@@ -70,61 +61,83 @@ export default function HomeScreen({ navigation }: Props): React.JSX.Element {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Image
-          source={require("../../assets/branding/outfoxed-logo.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-
-        <NixFox size={168} />
-
-        <Text style={styles.sectionTitle}>Kid Profile</Text>
-        <View style={styles.profileRow}>
-          {store?.profiles.map((profile) => {
-            const selected = profile.id === activeProfile?.id;
-            return (
-              <Pressable
-                key={profile.id}
-                style={[styles.profileChip, selected && styles.profileChipSelected]}
-                onPress={() => setActiveProfile(profile.id)}
-              >
-                <Text style={[styles.profileChipText, selected && styles.profileChipTextSelected]}>{profile.name}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <View style={styles.inlineButtons}>
-          <Pressable style={styles.smallButton} onPress={openAdd}>
-            <Text style={styles.smallButtonText}>Add Kid</Text>
-          </Pressable>
-          <Pressable style={styles.smallButton} onPress={openRename} disabled={!activeProfile}>
-            <Text style={styles.smallButtonText}>Rename Kid</Text>
-          </Pressable>
-          <Pressable style={[styles.smallButton, !canDelete && styles.buttonDisabled]} onPress={confirmDelete} disabled={!canDelete}>
-            <Text style={styles.smallButtonText}>Delete Kid</Text>
-          </Pressable>
+        <View style={styles.header}>
+          <IconButton icon="person" label="Profiles" onPress={() => setDrawerOpen(true)} haptic="light" />
+          <Image source={require("../../assets/branding/outfoxed-logo.png")} style={styles.logo} resizeMode="contain" />
+          <IconButton icon="gear" label="Settings" onPress={() => navigation.navigate("Settings")} haptic="light" />
         </View>
 
         <View style={styles.mainActions}>
-          <Pressable style={styles.actionButton} onPress={() => navigation.navigate("FocusSetup")}>
-            <Text style={styles.actionButtonText}>Focus</Text>
-          </Pressable>
-          <Pressable style={styles.actionButton} onPress={() => navigation.navigate("Game", { mode: "progression" })}>
-            <Text style={styles.actionButtonText}>Progression</Text>
-          </Pressable>
-          <Pressable style={styles.settingsButton} onPress={() => navigation.navigate("Settings")}>
-            <Text style={styles.settingsButtonText}>Settings</Text>
-          </Pressable>
+          <IconButton
+            icon="eye"
+            label="Focus Mode"
+            size="large"
+            onPress={() => navigation.navigate("FocusSetup")}
+            style={styles.actionButton}
+            haptic="light"
+          />
+          <IconButton
+            icon="trophy"
+            label="Progression"
+            size="large"
+            onPress={() => navigation.navigate("Game", { mode: "progression" })}
+            style={styles.actionButton}
+            haptic="light"
+          />
         </View>
       </ScrollView>
+
+      <Modal visible={drawerOpen} transparent animationType="fade" onRequestClose={() => setDrawerOpen(false)}>
+        <View style={styles.drawerOverlay}>
+          <View style={styles.drawerCard}>
+            <AppText weight="bold" style={styles.drawerTitle}>
+              Kid Profiles
+            </AppText>
+
+            <View style={styles.profileList}>
+              {store?.profiles.map((profile) => {
+                const selected = profile.id === activeProfile?.id;
+                return (
+                  <IconButton
+                    key={profile.id}
+                    icon="person"
+                    label={profile.name}
+                    onPress={() => setActiveProfile(profile.id)}
+                    style={[styles.profileButton, selected && styles.profileButtonSelected]}
+                    iconColor={selected ? "#FFFFFF" : "#1A4D9C"}
+                    textColor={selected ? "#FFFFFF" : "#1A4D9C"}
+                    haptic="light"
+                  />
+                );
+              })}
+            </View>
+
+            <View style={styles.drawerActions}>
+              <IconButton icon="plus-circle" label="Add Kid" onPress={openAdd} haptic="light" style={styles.drawerAction} />
+              <IconButton icon="person" label="Rename Kid" onPress={openRename} haptic="light" style={styles.drawerAction} />
+              <IconButton
+                icon="trash"
+                label="Delete Kid"
+                onPress={confirmDelete}
+                haptic="error"
+                style={styles.drawerAction}
+                disabled={!canDelete}
+              />
+            </View>
+
+            <IconButton icon="x-circle" label="Close" onPress={() => setDrawerOpen(false)} style={styles.closeDrawer} />
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={editorMode !== null} transparent animationType="fade" onRequestClose={closeEditor}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{editorMode === "add" ? "Add Kid" : "Rename Kid"}</Text>
+            <AppText weight="bold" style={styles.modalTitle}>
+              {editorMode === "add" ? "Add Kid" : "Rename Kid"}
+            </AppText>
             <TextInput
               autoFocus
               value={draftName}
@@ -134,12 +147,8 @@ export default function HomeScreen({ navigation }: Props): React.JSX.Element {
               maxLength={20}
             />
             <View style={styles.modalButtons}>
-              <Pressable style={[styles.modalButton, styles.cancel]} onPress={closeEditor}>
-                <Text style={[styles.modalButtonText, styles.cancelText]}>Cancel</Text>
-              </Pressable>
-              <Pressable style={[styles.modalButton, styles.confirm]} onPress={submitEditor}>
-                <Text style={styles.modalButtonText}>Save</Text>
-              </Pressable>
+              <IconButton icon="x-circle" label="Cancel" onPress={closeEditor} style={styles.modalButton} />
+              <IconButton icon="check-circle" label="Save" onPress={submitEditor} style={styles.modalButton} haptic="light" />
             </View>
           </View>
         </View>
@@ -151,107 +160,76 @@ export default function HomeScreen({ navigation }: Props): React.JSX.Element {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F4F8FC",
   },
   content: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingHorizontal: 14,
+    paddingBottom: 26,
+  },
+  header: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
+    marginBottom: 16,
   },
   logo: {
-    width: "100%",
-    height: 120,
-    marginTop: 12,
-    marginBottom: 8,
+    width: 160,
+    height: 76,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#1E3553",
-    marginBottom: 8,
+  mainActions: {
+    marginTop: 14,
+    gap: 14,
   },
-  profileRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
+  actionButton: {
+    borderRadius: 24,
+    minHeight: 130,
+  },
+  drawerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(22, 34, 54, 0.36)",
+    justifyContent: "flex-start",
+  },
+  drawerCard: {
+    width: "82%",
+    maxWidth: 340,
+    height: "100%",
+    backgroundColor: "#FFFFFF",
+    paddingTop: 60,
+    paddingHorizontal: 16,
+    borderTopRightRadius: 20,
+    borderBottomRightRadius: 20,
+    borderWidth: 1,
+    borderColor: "#D7E2EE",
+  },
+  drawerTitle: {
+    fontSize: 28,
+    color: "#1D334E",
     marginBottom: 10,
   },
-  profileChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: "#9CB6D1",
-    marginHorizontal: 4,
-    marginVertical: 4,
-    backgroundColor: "#FFFFFF",
+  profileList: {
+    gap: 8,
+    marginBottom: 14,
   },
-  profileChipSelected: {
+  profileButton: {
+    borderRadius: 14,
+  },
+  profileButtonSelected: {
     backgroundColor: "#1A4D9C",
     borderColor: "#1A4D9C",
   },
-  profileChipText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1E3553",
+  drawerActions: {
+    gap: 8,
   },
-  profileChipTextSelected: {
-    color: "#FFFFFF",
-  },
-  inlineButtons: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 14,
-  },
-  smallButton: {
-    flex: 1,
-    marginHorizontal: 4,
-    borderRadius: 12,
-    backgroundColor: "#E8F0FA",
-    borderWidth: 1,
-    borderColor: "#B4C9E0",
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  smallButtonText: {
-    color: "#1E3553",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  buttonDisabled: {
-    opacity: 0.4,
-  },
-  mainActions: {
-    width: "100%",
-    gap: 10,
-  },
-  actionButton: {
-    backgroundColor: "#FF8C42",
-    borderRadius: 18,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  actionButtonText: {
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "800",
-  },
-  settingsButton: {
-    backgroundColor: "#1A4D9C",
+  drawerAction: {
     borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginTop: 2,
   },
-  settingsButtonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
+  closeDrawer: {
+    marginTop: 16,
+    borderRadius: 14,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(18, 28, 46, 0.5)",
+    backgroundColor: "rgba(18, 28, 46, 0.45)",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
@@ -264,8 +242,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalTitle: {
-    fontSize: 19,
-    fontWeight: "800",
+    fontSize: 22,
     color: "#1F3653",
     marginBottom: 10,
   },
@@ -277,28 +254,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     marginBottom: 12,
+    backgroundColor: "#F8FBFF",
   },
   modalButtons: {
     flexDirection: "row",
     justifyContent: "flex-end",
+    gap: 8,
   },
   modalButton: {
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    marginLeft: 8,
-  },
-  cancel: {
-    backgroundColor: "#E8EEF5",
-  },
-  confirm: {
-    backgroundColor: "#1A4D9C",
-  },
-  modalButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
-  cancelText: {
-    color: "#1E3553",
+    borderRadius: 12,
   },
 });

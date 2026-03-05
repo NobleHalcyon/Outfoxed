@@ -4,6 +4,7 @@ import { DifficultyLevel, ItemLearningStat, TopicId, TopicLearningStat } from ".
 
 export interface KidSettings {
   soundEnabled: boolean;
+  musicMuted: boolean;
   showTimer: boolean;
   timeoutMs: number;
   showHud: boolean;
@@ -13,6 +14,7 @@ export interface KidSettings {
   hintMs: number;
   adaptivePracticeEnabled: boolean;
   startingDifficultyLevel: DifficultyLevel;
+  backgroundThemeId: string;
   wordList: string[];
 }
 
@@ -43,6 +45,7 @@ export const STORAGE_KEY = "outfoxed_profiles_v1";
 export function createDefaultSettings(): KidSettings {
   return {
     soundEnabled: true,
+    musicMuted: false,
     showTimer: true,
     timeoutMs: 12_000,
     showHud: true,
@@ -52,6 +55,7 @@ export function createDefaultSettings(): KidSettings {
     hintMs: 800,
     adaptivePracticeEnabled: true,
     startingDifficultyLevel: 0,
+    backgroundThemeId: "soft-gray",
     wordList: [...DEFAULT_WORD_LIST],
   };
 }
